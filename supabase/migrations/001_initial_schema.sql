@@ -71,7 +71,7 @@ ALTER TABLE reminder_log ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view own households"
     ON households FOR SELECT
     USING (id IN (
-        SELECT household_id FROM household_members WHERE user_id = auth.uid()
+        SELECT hm.household_id FROM household_members hm WHERE hm.user_id = auth.uid()
     ));
 
 -- Policy: users can insert households (when creating one)
@@ -83,15 +83,13 @@ CREATE POLICY "Users can create households"
 CREATE POLICY "Users can update own households"
     ON households FOR UPDATE
     USING (id IN (
-        SELECT household_id FROM household_members WHERE user_id = auth.uid()
+        SELECT hm.household_id FROM household_members hm WHERE hm.user_id = auth.uid()
     ));
 
--- Policy: users can see household members of their households
+-- Policy: users can see household members — no self-reference to avoid infinite recursion
 CREATE POLICY "Users can view own household members"
     ON household_members FOR SELECT
-    USING (household_id IN (
-        SELECT household_id FROM household_members hm WHERE hm.user_id = auth.uid()
-    ));
+    USING (user_id = auth.uid());
 
 -- Policy: users can join households (insert themselves)
 CREATE POLICY "Users can join households"

@@ -41,50 +41,28 @@ export default function RegisterPage() {
     }
 
     if (mode === "create") {
-      // 2a. Create household
-      const { data: household, error: hhError } = await supabase
-        .from("households")
-        .insert({ name: householdName || "Ons Huishouden" })
-        .select()
-        .single();
+      // Create household + join in one call (bypasses RLS via SECURITY DEFINER)
+      const { error: rpcError } = await supabase.rpc(
+        "create_household_with_member",
+        { household_name: householdName || "Ons Huishouden" }
+      );
 
-      if (hhError) {
-        setError("Kon huishouden niet aanmaken: " + hhError.message);
-        setLoading(false);
-        return;
-      }
-
-      // 3. Join household
-      const { error: joinError } = await supabase
-        .from("household_members")
-        .insert({ household_id: household.id, user_id: userId });
-
-      if (joinError) {
-        setError("Kon niet toetreden: " + joinError.message);
+      if (rpcError) {
+        setError("Kon huishouden niet aanmaken: " + rpcError.message);
         setLoading(false);
         return;
       }
     } else {
-      // 2b. Find household by invite code
-      const { data: household, error: findError } = await supabase
-        .from("households")
-        .select()
-        .eq("invite_code", inviteCode.trim())
-        .single();
+      // Join household by invite code (bypasses RLS via SECURITY DEFINER)
+      const { error: rpcError } = await supabase.rpc(
+        "join_household_by_invite",
+        { code: inviteCode.trim() }
+      );
 
-      if (findError || !household) {
-        setError("Ongeldige uitnodigingscode");
-        setLoading(false);
-        return;
-      }
-
-      // 3. Join household
-      const { error: joinError } = await supabase
-        .from("household_members")
-        .insert({ household_id: household.id, user_id: userId });
-
-      if (joinError) {
-        setError("Kon niet toetreden: " + joinError.message);
+      if (rpcError) {
+        setError(rpcError.message === "Ongeldige uitnodigingscode"
+          ? "Ongeldige uitnodigingscode"
+          : "Kon niet toetreden: " + rpcError.message);
         setLoading(false);
         return;
       }
