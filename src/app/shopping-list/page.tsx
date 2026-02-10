@@ -95,25 +95,20 @@ export default function ShoppingListPage() {
   return (
     <>
       <Navbar />
-      <main className="max-w-lg mx-auto px-4 py-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold flex items-center gap-2">
-            {"\uD83D\uDED2"} Nodig
-            {items.length > 0 && (
-              <span className="bg-red-500 text-white text-xs font-bold rounded-full min-w-[22px] h-[22px] flex items-center justify-center px-1.5">
-                {items.length}
-              </span>
-            )}
-          </h2>
-          {items.length > 0 && (
+      <main className="max-w-lg mx-auto px-4 py-4">
+        {items.length > 0 && (
+          <div className="flex items-center justify-end mb-4">
             <button
               onClick={markAllBought}
-              className="px-3 py-1.5 bg-green-600 text-white rounded-md text-xs font-medium hover:bg-green-700 transition-colors flex items-center gap-1"
+              className="px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 transition-colors flex items-center gap-1"
             >
-              {"\u2705"} Alles gekocht
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              Alles gekocht
             </button>
-          )}
-        </div>
+          </div>
+        )}
 
         {loading ? (
           <p className="text-gray-500 text-center py-8">Laden...</p>

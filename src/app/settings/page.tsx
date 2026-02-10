@@ -100,8 +100,7 @@ export default function SettingsPage() {
   return (
     <>
       <Navbar />
-      <main className="max-w-lg mx-auto px-4 py-6 space-y-6">
-        <h2 className="text-lg font-bold">Instellingen</h2>
+      <main className="max-w-lg mx-auto px-4 py-4 space-y-6">
 
         {/* Household settings */}
         <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 space-y-4">

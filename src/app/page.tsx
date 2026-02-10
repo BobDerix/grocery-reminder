@@ -97,17 +97,20 @@ export default function HomePage() {
   return (
     <>
       <Navbar />
-      <main className="max-w-lg mx-auto px-4 py-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold">Voorraad</h2>
+      <main className="max-w-lg mx-auto px-4 py-4">
+        <div className="flex items-center justify-end mb-4">
           <button
             onClick={() => {
               setEditingProduct(null);
               setShowForm(!showForm);
             }}
-            className="px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 transition-colors"
+            className="px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 transition-colors flex items-center gap-1"
           >
-            + Product
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            Product
           </button>
         </div>
 
@@ -128,7 +131,7 @@ export default function HomePage() {
         {onList.length > 0 && (
           <div className="mb-6">
             <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">
-              Op het boodschappenlijstje ({onList.length})
+              Op het lijstje ({onList.length})
             </h3>
             <div className="space-y-2">
               {onList.map((product) => (
