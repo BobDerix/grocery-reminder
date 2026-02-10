@@ -32,14 +32,26 @@ export default function ProductCard({
       : "bg-green-500 text-white";
 
   async function markBought() {
-    await supabase
-      .from("products")
-      .update({
-        status: "stocked",
-        last_restocked_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", product.id);
+    if (product.is_recurring) {
+      // Herhalend: reset timer
+      await supabase
+        .from("products")
+        .update({
+          status: "stocked",
+          last_restocked_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", product.id);
+    } else {
+      // Eenmalig: deactiveer
+      await supabase
+        .from("products")
+        .update({
+          is_active: false,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", product.id);
+    }
     onUpdate();
   }
 
@@ -73,24 +85,27 @@ export default function ProductCard({
                 {product.category}
               </span>
             )}
+            <span className="text-xs text-gray-400" title={product.is_recurring ? "Herhalend" : "Eenmalig"}>
+              {product.is_recurring ? "\uD83D\uDD01" : "\u261D\uFE0F"}
+            </span>
           </div>
           <p className="text-sm text-gray-600 mt-1">
-            Gaat{" "}
             <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${badgeColor}`}>
-              {days <= 0 ? "op!" : `${days}d`}
-            </span>{" "}
+              {days <= 0 ? "Op!" : `${days}d`}
+            </span>
+            {" "}
             {days > 0 ? "resterend" : ""}
-            {" · "}
-            Reminder {product.remind_days_before}d van tevoren
+            <span className="text-gray-400"> · </span>
+            <span className="text-gray-500">{"\uD83D\uDD14"} {product.remind_days_before}d vooraf</span>
           </p>
           {product.shop_url && (
             <a
               href={product.shop_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-xs text-blue-600 hover:underline mt-1 inline-block"
+              className="text-xs text-blue-600 hover:underline mt-1 inline-flex items-center gap-1"
             >
-              Bestel &rarr;
+              {"\uD83D\uDED2"} Bestel online
             </a>
           )}
         </div>
@@ -99,29 +114,29 @@ export default function ProductCard({
         {product.status !== "stocked" ? (
           <button
             onClick={markBought}
-            className="text-xs px-3 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+            className="text-xs px-3 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center gap-1"
           >
-            Gekocht
+            {"\u2705"} Gekocht
           </button>
         ) : (
           <button
             onClick={addToList}
-            className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+            className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-1"
           >
-            Op lijstje
+            {"\uD83D\uDCDD"} Op lijstje
           </button>
         )}
         <button
           onClick={() => onEdit(product)}
           className="text-xs px-3 py-1.5 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
         >
-          Bewerk
+          {"\u270F\uFE0F"} Bewerk
         </button>
         <button
           onClick={removeProduct}
           className="text-xs px-3 py-1.5 text-red-600 hover:bg-red-50 rounded-md transition-colors ml-auto"
         >
-          Verwijder
+          {"\uD83D\uDDD1\uFE0F"}
         </button>
       </div>
     </div>

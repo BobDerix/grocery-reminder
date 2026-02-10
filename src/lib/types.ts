@@ -9,6 +9,7 @@ export interface Product {
   status: "stocked" | "reminded" | "on_list" | "bought";
   is_active: boolean;
   shop_url: string | null;
+  is_recurring: boolean;
   added_by: string | null;
   created_at: string;
   updated_at: string;

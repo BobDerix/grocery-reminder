@@ -39,6 +39,9 @@ export default function ProductForm({
     existingProduct?.remind_days_before?.toString() ?? ""
   );
   const [shopUrl, setShopUrl] = useState(existingProduct?.shop_url ?? "");
+  const [isRecurring, setIsRecurring] = useState(
+    existingProduct?.is_recurring ?? true
+  );
   const [saving, setSaving] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -59,6 +62,7 @@ export default function ProductForm({
           days_until_empty: days,
           remind_days_before: remind,
           shop_url: shopUrl.trim() || null,
+          is_recurring: isRecurring,
           updated_at: new Date().toISOString(),
         })
         .eq("id", existingProduct.id);
@@ -74,6 +78,7 @@ export default function ProductForm({
         days_until_empty: days,
         remind_days_before: remind,
         shop_url: shopUrl.trim() || null,
+        is_recurring: isRecurring,
         last_restocked_at: new Date().toISOString(),
         status: "stocked",
         is_active: true,
@@ -87,7 +92,8 @@ export default function ProductForm({
 
   return (
     <form onSubmit={handleSubmit} className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-      <h3 className="font-semibold mb-3">
+      <h3 className="font-semibold mb-3 flex items-center gap-2">
+        <span>{existingProduct ? "\u270F\uFE0F" : "\u2795"}</span>
         {existingProduct ? "Product bewerken" : "Product toevoegen"}
       </h3>
 
@@ -124,10 +130,46 @@ export default function ProductForm({
           </select>
         </div>
 
+        {/* Eenmalig / Herhalend toggle */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Type aankoop
+          </label>
+          <div className="flex rounded-md overflow-hidden border border-gray-300">
+            <button
+              type="button"
+              onClick={() => setIsRecurring(true)}
+              className={`flex-1 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-1.5 ${
+                isRecurring
+                  ? "bg-green-600 text-white"
+                  : "bg-white text-gray-600"
+              }`}
+            >
+              {"\uD83D\uDD01"} Herhalend
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsRecurring(false)}
+              className={`flex-1 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-1.5 ${
+                !isRecurring
+                  ? "bg-green-600 text-white"
+                  : "bg-white text-gray-600"
+              }`}
+            >
+              {"\u261D\uFE0F"} Eenmalig
+            </button>
+          </div>
+          <p className="text-xs text-gray-400 mt-1">
+            {isRecurring
+              ? "Timer herstart automatisch na aankoop"
+              : "Verdwijnt van de lijst na aankoop"}
+          </p>
+        </div>
+
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Dagen tot op
+              {isRecurring ? "Dagen tot op" : "Nodig over (dagen)"}
             </label>
             <input
               type="number"

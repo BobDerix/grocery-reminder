@@ -37,12 +37,11 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (!household) {
-    // Not a registered household
     return NextResponse.json({ ok: true });
   }
 
-  if (text === "/list" || text === "/lijst") {
-    // Show current shopping list
+  // /lijst or /nodig — show items that need to be bought
+  if (text === "/list" || text === "/lijst" || text === "/nodig") {
     const { data: items } = await supabase
       .from("products_with_timing")
       .select("*")
@@ -51,18 +50,22 @@ export async function POST(request: NextRequest) {
       .order("days_remaining", { ascending: true });
 
     if (!items || items.length === 0) {
-      await sendTelegramMessage(chatId, "Geen boodschappen nodig! Alles op voorraad.");
+      await sendTelegramMessage(chatId, "\uD83C\uDF89 Niets nodig! Alles op voorraad.");
     } else {
       const lines = items.map(
         (i) =>
-          `  - ${i.name}${i.days_remaining <= 0 ? " (OP!)" : ` (${i.days_remaining}d)`}`
+          `  ${i.days_remaining <= 0 ? "\uD83D\uDD34" : "\uD83D\uDFE1"} ${i.name}${
+            i.shop_url ? ` (<a href="${i.shop_url}">bestel</a>)` : ""
+          }`
       );
       await sendTelegramMessage(
         chatId,
-        `<b>Boodschappenlijst:</b>\n\n${lines.join("\n")}`
+        `\uD83D\uDED2 <b>Nodig (${items.length}):</b>\n\n${lines.join("\n")}`
       );
     }
-  } else if (text.startsWith("/gekocht ") || text.startsWith("/bought ")) {
+  }
+  // /gekocht — mark product as bought
+  else if (text.startsWith("/gekocht ") || text.startsWith("/bought ")) {
     const productName = text.replace(/^\/(gekocht|bought)\s+/, "").trim();
 
     if (!productName) {
@@ -70,10 +73,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    // Find and update the product (case-insensitive match)
     const { data: products } = await supabase
       .from("products")
-      .select("id, name")
+      .select("id, name, is_recurring")
       .eq("household_id", household.id)
       .eq("is_active", true)
       .ilike("name", `%${productName}%`);
@@ -81,26 +83,41 @@ export async function POST(request: NextRequest) {
     if (!products || products.length === 0) {
       await sendTelegramMessage(
         chatId,
-        `Product "${productName}" niet gevonden.`
+        `\u274C Product "${productName}" niet gevonden.`
       );
     } else {
       const product = products[0];
-      await supabase
-        .from("products")
-        .update({
-          status: "stocked",
-          last_restocked_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", product.id);
 
-      await sendTelegramMessage(
-        chatId,
-        `<b>${product.name}</b> is gemarkeerd als gekocht! Timer is gereset.`
-      );
+      if (product.is_recurring) {
+        await supabase
+          .from("products")
+          .update({
+            status: "stocked",
+            last_restocked_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", product.id);
+        await sendTelegramMessage(
+          chatId,
+          `\u2705 <b>${product.name}</b> gekocht! Timer is gereset.`
+        );
+      } else {
+        await supabase
+          .from("products")
+          .update({
+            is_active: false,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", product.id);
+        await sendTelegramMessage(
+          chatId,
+          `\u2705 <b>${product.name}</b> gekocht en van de lijst verwijderd (eenmalig).`
+        );
+      }
     }
-  } else if (text.startsWith("/add ") || text.startsWith("/voeg ")) {
-    // /add <naam> <dagen> [reminder_dagen]
+  }
+  // /voeg — add a product
+  else if (text.startsWith("/add ") || text.startsWith("/voeg ")) {
     const parts = text.replace(/^\/(add|voeg)\s+/, "").trim().split(/\s+/);
 
     if (parts.length < 2) {
@@ -111,7 +128,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    // Last 1-2 items are numbers, rest is the name
     const lastTwo = parts.slice(-2);
     const lastOne = parts.slice(-1);
 
@@ -143,6 +159,7 @@ export async function POST(request: NextRequest) {
       name,
       days_until_empty: daysUntilEmpty,
       remind_days_before: remindDaysBefore,
+      is_recurring: true,
       last_restocked_at: new Date().toISOString(),
       status: "stocked",
       is_active: true,
@@ -150,10 +167,11 @@ export async function POST(request: NextRequest) {
 
     await sendTelegramMessage(
       chatId,
-      `<b>${name}</b> toegevoegd! Gaat ~${daysUntilEmpty} dagen mee, reminder ${remindDaysBefore} dagen van tevoren.`
+      `\u2795 <b>${name}</b> toegevoegd! ~${daysUntilEmpty}d voorraad, reminder ${remindDaysBefore}d vooraf.`
     );
-  } else if (text === "/voorraad" || text === "/status") {
-    // Show all products with their status
+  }
+  // /voorraad — show all products with urgency
+  else if (text === "/voorraad" || text === "/status") {
     const { data: products } = await supabase
       .from("products_with_timing")
       .select("*")
@@ -161,33 +179,125 @@ export async function POST(request: NextRequest) {
       .order("days_remaining", { ascending: true });
 
     if (!products || products.length === 0) {
-      await sendTelegramMessage(chatId, "Nog geen producten bijgehouden.");
+      await sendTelegramMessage(chatId, "\uD83D\uDCE6 Nog geen producten bijgehouden.");
     } else {
       const lines = products.map((p) => {
         const emoji =
           p.days_remaining <= 0
-            ? "!!!"
+            ? "\uD83D\uDD34"
             : p.days_remaining <= p.remind_days_before
-            ? "(!)"
-            : "   ";
-        return `${emoji} ${p.name}: ${p.days_remaining}d resterend`;
+            ? "\uD83D\uDFE1"
+            : "\uD83D\uDFE2";
+        const type = p.is_recurring ? "\uD83D\uDD01" : "\u261D\uFE0F";
+        return `${emoji} ${p.name} ${type} — ${p.days_remaining}d`;
       });
       await sendTelegramMessage(
         chatId,
-        `<b>Voorraad overzicht:</b>\n\n${lines.join("\n")}`
+        `\uD83D\uDCE6 <b>Voorraad overzicht:</b>\n\n${lines.join("\n")}\n\n\uD83D\uDFE2 = ok  \uD83D\uDFE1 = bijna op  \uD83D\uDD34 = op`
       );
     }
-  } else if (text === "/help") {
+  }
+  // /snel — quick add to shopping list (doesn't create product, just marks existing as on_list)
+  else if (text.startsWith("/snel ") || text.startsWith("/quick ")) {
+    const productName = text.replace(/^\/(snel|quick)\s+/, "").trim();
+
+    const { data: products } = await supabase
+      .from("products")
+      .select("id, name")
+      .eq("household_id", household.id)
+      .eq("is_active", true)
+      .ilike("name", `%${productName}%`);
+
+    if (!products || products.length === 0) {
+      await sendTelegramMessage(
+        chatId,
+        `\u274C "${productName}" niet gevonden. Gebruik /voeg om het toe te voegen.`
+      );
+    } else {
+      const product = products[0];
+      await supabase
+        .from("products")
+        .update({ status: "on_list", updated_at: new Date().toISOString() })
+        .eq("id", product.id);
+      await sendTelegramMessage(
+        chatId,
+        `\uD83D\uDCDD <b>${product.name}</b> op het lijstje gezet!`
+      );
+    }
+  }
+  // /bijna — show products running low (within reminder window)
+  else if (text === "/bijna" || text === "/urgent") {
+    const { data: products } = await supabase
+      .from("products_with_timing")
+      .select("*")
+      .eq("household_id", household.id)
+      .eq("status", "stocked")
+      .order("days_remaining", { ascending: true });
+
+    const urgent = (products ?? []).filter(
+      (p) => p.days_remaining <= p.remind_days_before
+    );
+
+    if (urgent.length === 0) {
+      await sendTelegramMessage(chatId, "\u2705 Niets urgent! Alles nog op voorraad.");
+    } else {
+      const lines = urgent.map(
+        (p) =>
+          `  ${p.days_remaining <= 0 ? "\uD83D\uDD34" : "\uD83D\uDFE1"} ${p.name} — ${
+            p.days_remaining <= 0 ? "OP!" : `${p.days_remaining}d`
+          }`
+      );
+      await sendTelegramMessage(
+        chatId,
+        `\u26A0\uFE0F <b>Bijna op (${urgent.length}):</b>\n\n${lines.join("\n")}`
+      );
+    }
+  }
+  // /verwijder — remove a product
+  else if (text.startsWith("/verwijder ") || text.startsWith("/delete ")) {
+    const productName = text.replace(/^\/(verwijder|delete)\s+/, "").trim();
+
+    const { data: products } = await supabase
+      .from("products")
+      .select("id, name")
+      .eq("household_id", household.id)
+      .eq("is_active", true)
+      .ilike("name", `%${productName}%`);
+
+    if (!products || products.length === 0) {
+      await sendTelegramMessage(chatId, `\u274C "${productName}" niet gevonden.`);
+    } else {
+      const product = products[0];
+      await supabase
+        .from("products")
+        .update({ is_active: false, updated_at: new Date().toISOString() })
+        .eq("id", product.id);
+      await sendTelegramMessage(
+        chatId,
+        `\uD83D\uDDD1\uFE0F <b>${product.name}</b> verwijderd.`
+      );
+    }
+  }
+  // /help
+  else if (text === "/help" || text === "/start") {
     await sendTelegramMessage(
       chatId,
       [
-        "<b>Beschikbare commando's:</b>",
+        "\uD83D\uDED2 <b>Boodschappen Reminder Bot</b>",
         "",
-        "/lijst - Toon boodschappenlijst",
-        "/voorraad - Toon alle producten met status",
-        "/gekocht &lt;naam&gt; - Markeer product als gekocht",
-        "/voeg &lt;naam&gt; &lt;dagen&gt; [reminder] - Voeg product toe",
-        "/help - Toon dit menu",
+        "<b>Lijsten:</b>",
+        "/nodig — Toon wat je moet kopen",
+        "/voorraad — Toon alle producten",
+        "/bijna — Toon wat bijna op is",
+        "",
+        "<b>Acties:</b>",
+        "/gekocht &lt;naam&gt; — Markeer als gekocht",
+        "/snel &lt;naam&gt; — Zet snel op het lijstje",
+        "/voeg &lt;naam&gt; &lt;dagen&gt; [reminder] — Nieuw product",
+        "/verwijder &lt;naam&gt; — Verwijder product",
+        "",
+        "<b>Tip:</b> Je kunt ook gedeeltelijke namen gebruiken!",
+        "Bijv: /gekocht haver (vindt Havermelk)",
       ].join("\n")
     );
   }
