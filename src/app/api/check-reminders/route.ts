@@ -97,9 +97,40 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // Also check general reminders
+  const today = new Date().toISOString();
+  const { data: dueReminders } = await supabase
+    .from("reminders")
+    .select("*, households(telegram_chat_id)")
+    .lte("due_date", today)
+    .eq("is_done", false);
+
+  if (dueReminders && dueReminders.length > 0) {
+    const remindersByHH: Record<string, { chatId: string; items: typeof dueReminders }> = {};
+
+    for (const r of dueReminders) {
+      const hhId = r.household_id;
+      const hh = (r as Record<string, unknown>).households as { telegram_chat_id: string | null } | null;
+      if (!hh?.telegram_chat_id) continue;
+
+      if (!remindersByHH[hhId]) {
+        remindersByHH[hhId] = { chatId: hh.telegram_chat_id, items: [] };
+      }
+      remindersByHH[hhId].items.push(r);
+    }
+
+    for (const [, { chatId, items }] of Object.entries(remindersByHH)) {
+      const lines = items.map((r) => `  - <b>${r.title}</b>${r.description ? ` (${r.description})` : ""}`);
+      const msg = ["Herinneringen voor vandaag:", "", ...lines].join("\n");
+      await sendTelegramMessage(chatId, msg);
+      sentCount++;
+    }
+  }
+
   return NextResponse.json({
     message: `Sent ${sentCount} reminder(s)`,
     sent: sentCount,
-    productsChecked: dueProducts.length,
+    productsChecked: dueProducts?.length ?? 0,
+    remindersChecked: dueReminders?.length ?? 0,
   });
 }

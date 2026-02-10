@@ -8,6 +8,7 @@ export interface Product {
   last_restocked_at: string;
   status: "stocked" | "reminded" | "on_list" | "bought";
   is_active: boolean;
+  shop_url: string | null;
   added_by: string | null;
   created_at: string;
   updated_at: string;

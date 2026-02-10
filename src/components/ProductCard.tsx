@@ -83,6 +83,16 @@ export default function ProductCard({
             {" · "}
             Reminder {product.remind_days_before}d van tevoren
           </p>
+          {product.shop_url && (
+            <a
+              href={product.shop_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-blue-600 hover:underline mt-1 inline-block"
+            >
+              Bestel &rarr;
+            </a>
+          )}
         </div>
       </div>
       <div className="flex gap-2 mt-3">

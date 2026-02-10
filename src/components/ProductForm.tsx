@@ -32,17 +32,21 @@ export default function ProductForm({
   const supabase = createClient();
   const [name, setName] = useState(existingProduct?.name ?? "");
   const [category, setCategory] = useState(existingProduct?.category ?? "");
-  const [daysUntilEmpty, setDaysUntilEmpty] = useState(
-    existingProduct?.days_until_empty ?? 7
+  const [daysUntilEmpty, setDaysUntilEmpty] = useState<string>(
+    existingProduct?.days_until_empty?.toString() ?? ""
   );
-  const [remindDaysBefore, setRemindDaysBefore] = useState(
-    existingProduct?.remind_days_before ?? 2
+  const [remindDaysBefore, setRemindDaysBefore] = useState<string>(
+    existingProduct?.remind_days_before?.toString() ?? ""
   );
+  const [shopUrl, setShopUrl] = useState(existingProduct?.shop_url ?? "");
   const [saving, setSaving] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
+
+    const days = parseInt(daysUntilEmpty) || 7;
+    const remind = parseInt(remindDaysBefore) || 2;
 
     setSaving(true);
 
@@ -52,8 +56,9 @@ export default function ProductForm({
         .update({
           name: name.trim(),
           category: category || null,
-          days_until_empty: daysUntilEmpty,
-          remind_days_before: remindDaysBefore,
+          days_until_empty: days,
+          remind_days_before: remind,
+          shop_url: shopUrl.trim() || null,
           updated_at: new Date().toISOString(),
         })
         .eq("id", existingProduct.id);
@@ -66,8 +71,9 @@ export default function ProductForm({
         household_id: householdId,
         name: name.trim(),
         category: category || null,
-        days_until_empty: daysUntilEmpty,
-        remind_days_before: remindDaysBefore,
+        days_until_empty: days,
+        remind_days_before: remind,
+        shop_url: shopUrl.trim() || null,
         last_restocked_at: new Date().toISOString(),
         status: "stocked",
         is_active: true,
@@ -128,7 +134,8 @@ export default function ProductForm({
               min={1}
               max={365}
               value={daysUntilEmpty}
-              onChange={(e) => setDaysUntilEmpty(Number(e.target.value))}
+              onChange={(e) => setDaysUntilEmpty(e.target.value)}
+              placeholder="7"
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
               required
             />
@@ -140,13 +147,27 @@ export default function ProductForm({
             <input
               type="number"
               min={0}
-              max={daysUntilEmpty}
+              max={365}
               value={remindDaysBefore}
-              onChange={(e) => setRemindDaysBefore(Number(e.target.value))}
+              onChange={(e) => setRemindDaysBefore(e.target.value)}
+              placeholder="2"
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
               required
             />
           </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Webshop link <span className="text-gray-400 font-normal">(optioneel)</span>
+          </label>
+          <input
+            type="url"
+            value={shopUrl}
+            onChange={(e) => setShopUrl(e.target.value)}
+            placeholder="https://www.ah.nl/producten/..."
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+          />
         </div>
       </div>
 
