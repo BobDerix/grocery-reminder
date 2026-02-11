@@ -4,10 +4,12 @@ import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase";
 import { ProductWithTiming } from "@/lib/types";
 import Navbar from "@/components/Navbar";
+import ProductCard from "@/components/ProductCard";
 
 export default function ShoppingListPage() {
   const supabase = createClient();
   const [items, setItems] = useState<ProductWithTiming[]>([]);
+  const [householdId, setHouseholdId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const loadItems = useCallback(async () => {
@@ -27,6 +29,8 @@ export default function ShoppingListPage() {
       return;
     }
 
+    setHouseholdId(membership.household_id);
+
     const { data } = await supabase
       .from("products_with_timing")
       .select("*")
@@ -41,28 +45,6 @@ export default function ShoppingListPage() {
   useEffect(() => {
     loadItems();
   }, [loadItems]);
-
-  async function markBought(item: ProductWithTiming) {
-    if (item.is_recurring) {
-      await supabase
-        .from("products")
-        .update({
-          status: "stocked",
-          last_restocked_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", item.id);
-    } else {
-      await supabase
-        .from("products")
-        .update({
-          is_active: false,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", item.id);
-    }
-    loadItems();
-  }
 
   async function markAllBought() {
     const recurring = items.filter((i) => i.is_recurring);
@@ -92,6 +74,11 @@ export default function ShoppingListPage() {
     loadItems();
   }
 
+  // Dummy edit handler — op de Nodig-pagina kun je niet bewerken
+  function handleEdit() {
+    // Intentionally empty — editing is done on the Producten page
+  }
+
   return (
     <>
       <Navbar />
@@ -114,58 +101,28 @@ export default function ShoppingListPage() {
           <p className="text-gray-500 text-center py-8">Laden...</p>
         ) : items.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-4xl mb-3">{"\uD83C\uDF89"}</p>
-            <p className="text-gray-500 text-sm">
-              Niets nodig! Alles is op voorraad.
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" className="w-12 h-12 text-gray-300 mx-auto mb-3">
+              <circle cx="8" cy="21" r="1" />
+              <circle cx="19" cy="21" r="1" />
+              <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
+            </svg>
+            <p className="text-gray-500 text-sm mb-1">
+              Niets nodig!
+            </p>
+            <p className="text-gray-400 text-xs">
+              Alles is op voorraad. Producten verschijnen hier automatisch als ze bijna op zijn.
             </p>
           </div>
         ) : (
           <div className="space-y-2">
             {items.map((item) => (
-              <div
+              <ProductCard
                 key={item.id}
-                className="flex items-center gap-3 bg-white p-3 rounded-lg shadow-sm border border-gray-200"
-              >
-                <button
-                  onClick={() => markBought(item)}
-                  className="w-6 h-6 rounded-full border-2 border-gray-300 hover:border-green-500 hover:bg-green-50 transition-colors flex-shrink-0"
-                  title="Markeer als gekocht"
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-gray-900">{item.name}</span>
-                    <span className="text-xs text-gray-400" title={item.is_recurring ? "Herhalend" : "Eenmalig"}>
-                      {item.is_recurring ? "\uD83D\uDD01" : "\u261D\uFE0F"}
-                    </span>
-                    {item.category && (
-                      <span className="text-xs text-gray-400">
-                        {item.category}
-                      </span>
-                    )}
-                  </div>
-                  {item.shop_url && (
-                    <a
-                      href={item.shop_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-blue-600 hover:underline inline-flex items-center gap-1"
-                    >
-                      {"\uD83D\uDED2"} Bestel online
-                    </a>
-                  )}
-                </div>
-                <span
-                  className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                    item.days_remaining <= 0
-                      ? "bg-red-100 text-red-700"
-                      : "bg-yellow-100 text-yellow-700"
-                  }`}
-                >
-                  {item.days_remaining <= 0
-                    ? "Op!"
-                    : `${item.days_remaining}d`}
-                </span>
-              </div>
+                product={item}
+                onUpdate={loadItems}
+                onEdit={handleEdit}
+                context="nodig"
+              />
             ))}
           </div>
         )}

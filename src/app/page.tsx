@@ -16,7 +16,6 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
 
   const loadData = useCallback(async () => {
-    // Get user's household
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -35,7 +34,6 @@ export default function HomePage() {
 
     setHouseholdId(membership.household_id);
 
-    // Load products with timing
     const { data: prods } = await supabase
       .from("products_with_timing")
       .select("*")
@@ -89,6 +87,7 @@ export default function HomePage() {
     );
   }
 
+  // Alleen producten die op voorraad zijn (stocked) of op de lijst staan
   const stocked = products.filter((p) => p.status === "stocked");
   const onList = products.filter(
     (p) => p.status === "on_list" || p.status === "reminded"
@@ -128,45 +127,53 @@ export default function HomePage() {
           </div>
         )}
 
+        {/* Producten op de lijst — klein indicatieblok */}
         {onList.length > 0 && (
-          <div className="mb-6">
-            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">
-              Op het lijstje ({onList.length})
-            </h3>
-            <div className="space-y-2">
-              {onList.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  onUpdate={loadData}
-                  onEdit={handleEdit}
-                />
-              ))}
+          <div className="mb-4 bg-orange-50 border border-orange-200 rounded-lg p-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-orange-500">
+                <circle cx="8" cy="21" r="1" />
+                <circle cx="19" cy="21" r="1" />
+                <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
+              </svg>
+              <span className="text-sm font-medium text-orange-800">
+                {onList.length} {onList.length === 1 ? "product" : "producten"} op het lijstje
+              </span>
             </div>
+            <a
+              href="/shopping-list"
+              className="text-xs font-medium text-orange-700 bg-orange-100 hover:bg-orange-200 px-3 py-1.5 rounded-md transition-colors"
+            >
+              Bekijk
+            </a>
           </div>
         )}
 
-        <div>
-          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">
-            Op voorraad ({stocked.length})
-          </h3>
-          {stocked.length === 0 ? (
-            <p className="text-gray-400 text-sm py-8 text-center">
+        {/* Alle producten op voorraad */}
+        {stocked.length === 0 && onList.length === 0 ? (
+          <div className="text-center py-12">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" className="w-12 h-12 text-gray-300 mx-auto mb-3">
+              <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+              <path d="m3.3 7 8.7 5 8.7-5" />
+              <path d="M12 22V12" />
+            </svg>
+            <p className="text-gray-400 text-sm">
               Nog geen producten. Voeg je eerste product toe!
             </p>
-          ) : (
-            <div className="space-y-2">
-              {stocked.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  onUpdate={loadData}
-                  onEdit={handleEdit}
-                />
-              ))}
-            </div>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {stocked.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                onUpdate={loadData}
+                onEdit={handleEdit}
+                context="producten"
+              />
+            ))}
+          </div>
+        )}
       </main>
     </>
   );
